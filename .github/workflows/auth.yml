@@ -1,0 +1,41 @@
+# name of the github-action
+
+name: deploy-auth
+# when and where to trigger action
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "packages/auth/**"
+
+# where the action should be executed,
+# all the commands that you specigy would run here
+defaults:
+  run:
+    working-directory: packages/auth
+
+# job that should be performed by your action
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - run: npm install --legacy-peer-deps
+      - run: npm run build
+
+      - uses: shinyinc/action-aws-cli@v1.2
+
+      - run: aws s3 sync dist s3://${{ secrets.AWS_S3_BUCKET_NAME }}/auth/latest
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: ap-south-1
+
+      - run: aws cloudfront create-invalidation --distribution-id ${{ secrets.AWS_DISTRIBUTION_ID }} --paths "/auth/latest/remoteEntry.js"
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: ap-south-1
